@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2022, AnibalMota."
 #property link      "ajfmota@gmail.com"
-#property version   "2208.100"
+#property version   "2208.130"
 #property description "Robot para Calcular o Tamanho do Lote e efetuar Ordem de Compra ou Venda"
 
 //---
@@ -18,9 +18,8 @@ input int             Operacoes = 10;
 input int             SL_Percentagem = 50;
 input group          "Configuração do TP"
 input double          TakeProfit = 1.3;
-input bool            TP1 = true;
+input bool            TPNew = true;
 input double          TakeProfit1 = 1.5;
-input bool            TP2 = true;
 input double          TakeProfit2 = 2.0;
 input group          "Configuração de Linhas e Comentários"
 input int             Numero_Dias_Max_Min = 1;
@@ -349,7 +348,7 @@ void OnDeinit(const int reason)
    sl=false;
    calcula1 = true;
 
-   //Limpar campo para o valor inicial
+//Limpar campo para o valor inicial
    valorPercentagem = Percentagem;
    valorTakeProfit = TakeProfit;
    valorTakeProfit1 = TakeProfit1;
@@ -428,7 +427,7 @@ void OnChartEvent(const int id,
 //--- the left mouse button has been pressed on the chart
    if(id==CHARTEVENT_CLICK)
      {
-     Print("421- Sparam- "+sparam); 
+      Print("421- Sparam- "+sparam);
       if(!operacao && sparam=="")
         {
          //Declrar variaveis
@@ -462,7 +461,7 @@ void OnChartEvent(const int id,
                   //Criar linha Ent
                   ent_is_object_being_dragged=false;
                   ent_new_drag_price=0;
-                  //create a test line SL
+                  //create a test line TP
                   bool obj1=ObjectCreate(ChartID(),linhaEnt,OBJ_HLINE,0,0,price);
                   ObjectSetInteger(ChartID(),linhaEnt,OBJPROP_COLOR,Cor_Compra);
                   ObjectSetInteger(ChartID(),linhaEnt,OBJPROP_WIDTH,Espessura_Linha_Ordem);
@@ -509,7 +508,7 @@ void OnChartEvent(const int id,
 //Obter o evento
    if(id==CHARTEVENT_OBJECT_CLICK)
      {
-     Print("501- Sparam- "+sparam); 
+      Print("501- Sparam- "+sparam);
       Sleep(50);
 
       if(sparam=="Buy")
@@ -538,16 +537,23 @@ void OnChartEvent(const int id,
          negocio.BuyStop(nlotes,entada,_Symbol,saida,tempTp2,ORDER_TIME_DAY,0,"BuyStop");
          //colocar o botao no estado normal
          ObjectSetInteger(0,sparam,OBJPROP_STATE,false);
-         
-         //Calcular TP1 e TP2
-         double tempTp15 = entada + valorTakeProfit1*tempTp1;
-         double tempTp20 = entada + valorTakeProfit2*tempTp1;
+
          //--- Removel linhas------------------------------------------------------------------------------------
          operacao = true;
          ObjectDelete(0,linhaSl);
          ObjectDelete(0,linhaEnt);
          ent = false;
          sl= false;
+
+         if(TPNew)
+           {
+            //Inserir as linhas no TP1 e TP2
+            //Calcular TP1 e TP2
+            double tempTp15 = entada + valorTakeProfit1*tempTp1;
+            double tempTp20 = entada + valorTakeProfit2*tempTp1;
+            criarLinhaCompra(tempTp20);
+            criarLinhaVenda(tempTp15);
+           }
 
         }
       if(sparam=="Sell")
@@ -574,12 +580,23 @@ void OnChartEvent(const int id,
          //colocar ordem de venda
          negocio.SellStop(nlotes,entada,_Symbol,saida,tempTp2,ORDER_TIME_DAY,0,"SellStop");
          ObjectSetInteger(0,sparam,OBJPROP_STATE,false);
+
          //--- Removel linhas------------------------------------------------------------------------------------
          operacao = true;
          ObjectDelete(0,linhaSl);
          ObjectDelete(0,linhaEnt);
          ent = false;
          sl= false;
+
+         if(TPNew)
+           {
+            //Inserir as linhas no TP1 e TP2
+            //Calcular TP1 e TP2
+            double tempTp15 = entada - valorTakeProfit1*tempTp1;
+            double tempTp20 = entada - valorTakeProfit2*tempTp1;
+            criarLinhaCompra(tempTp15);
+            criarLinhaVenda(tempTp20);
+           }
         }
       if(sparam=="Close")
         {
@@ -1553,6 +1570,48 @@ void mostraActivos()
 void mostraComentarios(string comenta)
   {
    Comment(comenta);
+  }
+//+------------------------------------------------------------------+
+//| Criar nova linha de Compra
+//+------------------------------------------------------------------+
+void criarLinhaCompra(double posicao)
+  {
+//Criar linha Ent
+   ent_is_object_being_dragged=false;
+   ent_new_drag_price=0;
+//Criar linha TP
+   bool obj1=ObjectCreate(ChartID(),linhaEnt,OBJ_HLINE,0,0,posicao);
+   ObjectSetInteger(ChartID(),linhaEnt,OBJPROP_COLOR,Cor_Compra);
+   ObjectSetInteger(ChartID(),linhaEnt,OBJPROP_WIDTH,Espessura_Linha_Ordem);
+   ObjectSetInteger(ChartID(),linhaEnt,OBJPROP_SELECTABLE,true);
+   ObjectSetInteger(ChartID(),linhaEnt,OBJPROP_SELECTED,true);
+   ChartSetInteger(ChartID(),CHART_EVENT_MOUSE_MOVE,true);
+
+   ObjectSetString(0,linhaCompra,OBJPROP_TEXT,posicao);//2 Direita
+   ent=true;
+   ChartRedraw();
+
+  }
+//+------------------------------------------------------------------+
+
+//+------------------------------------------------------------------+
+void criarLinhaVenda(double posicao)
+  {
+
+//Criar linha SL
+   sl_is_object_being_dragged=false;
+   sl_new_drag_price=0;
+//create a test line SL
+   bool obj=ObjectCreate(ChartID(),linhaSl,OBJ_HLINE,0,0,posicao);
+   ObjectSetInteger(ChartID(),linhaSl,OBJPROP_COLOR,Cor_Venda);
+   ObjectSetInteger(ChartID(),linhaSl,OBJPROP_WIDTH,Espessura_Linha_Ordem);
+   ObjectSetInteger(ChartID(),linhaSl,OBJPROP_SELECTABLE,true);
+   ObjectSetInteger(ChartID(),linhaSl,OBJPROP_SELECTED,true);
+   ChartSetInteger(ChartID(),CHART_EVENT_MOUSE_MOVE,0,true);
+
+   ObjectSetString(0,linhaVenda,OBJPROP_TEXT,posicao);//3 direita
+   sl=true;
+   ChartRedraw();
   }
 //+------------------------------------------------------------------+
 
